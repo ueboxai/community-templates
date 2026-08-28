@@ -27,8 +27,7 @@ https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json
 模板包解压出来是一个完整的 UE 工程，打开时里面的 C++、插件、脚本都会跑，
 「下到的字节确实是你写的那份」是客户端唯一能提供的保证。
 
-完整的字段说明和校验规则见客户端仓库的
-[docs/community-templates.md](https://github.com/ueboxai/unreal-box-core/blob/main/docs/community-templates.md)。
+完整的字段说明和校验规则见客户端仓库的 `docs/community-templates.md`。
 
 ## 关于安全
 

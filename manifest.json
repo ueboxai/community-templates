@@ -13,6 +13,19 @@
       "version": "1.1.0",
       "author": "Unreal Box Team",
       "license": "Apache-2.0"
+    },
+    {
+      "id": "renderstart",
+      "name": "RenderStart 渲染起步工程",
+      "description": "面向离线出片与可视化的起步工程：Lumen + 硬件光追 + 路径追踪已开，自带 Datasmith 导入、Movie Render Queue、日照与 HDRI 环境光。",
+      "category": "render",
+      "engineVersion": "5.7",
+      "packageUrl": "packages/RenderStart.zip",
+      "size": 6504,
+      "sha256": "3917fc85ccb21bc9a12034fb4f1edee8a936ca2c9b50c4a385ea353b2ab7ab5c",
+      "version": "2.0.0",
+      "author": "Unreal Box Team",
+      "license": "Apache-2.0"
     }
   ]
 }
