@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "templates": [
+    {
+      "id": "gamestart",
+      "name": "GameStart 游戏启动工程",
+      "description": "最小可用的游戏工程骨架：已配好默认输入映射与引擎设置，开箱可跑。适合从零起一个新游戏项目。",
+      "category": "game",
+      "engineVersion": "5.7",
+      "packageUrl": "packages/GameStart.zip",
+      "size": 8873,
+      "sha256": "30690640ca52e1213e2ed4117e27ccb04c4118c0d2f44c1120ab242951f9b342",
+      "version": "1.0.0",
+      "author": "Unreal Box Team",
+      "license": "Apache-2.0"
+    }
+  ]
+}
