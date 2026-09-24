@@ -31,20 +31,3 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python3 -m unittest discover -s tests -v
-
-  signature:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: 校验清单签名
-        run: |
-          if [ ! -f keys/manifest.pub ]; then
-            echo "::notice::还没有配置签名公钥 keys/manifest.pub，跳过签名校验"
-            exit 0
-          fi
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq minisign
-          if ! minisign -Vm manifest.json -p keys/manifest.pub; then
-            echo "::error file=manifest.json::manifest.json 没有有效签名。投稿 PR 这一项失败是正常的：维护者审核通过后会签名再合并"
-            exit 1
-          fi

@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import datetime
 import json
 import os
 import re
@@ -24,7 +23,7 @@ import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from _common import EXCLUDED_DIRS, ROOT, collect, sha256_of
+from _common import DEVELOPERS_DIR, EXCLUDED_DIRS, ROOT, collect, sha256_of
 
 FORMAT_VERSION = 1
 REQUIRED = ("id", "name", "packageUrl", "sha256")
@@ -34,31 +33,27 @@ FIELDS: dict[str, type] = {
     "name": str,
     "description": str,
     "category": str,
-    "tags": list,
     "engineVersion": str,
     "packageUrl": str,
     "size": int,
     "sha256": str,
     "version": str,
-    "updated": str,
-    "minClientVersion": str,
     "author": str,
     "license": str,
     "homepage": str,
-    "thumbnail": str,
+    "previewUrl": str,
 }
-TYPE_NAMES = {str: "字符串", int: "整数", list: "数组"}
+TYPE_NAMES = {str: "字符串", int: "整数"}
 
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-CATEGORY_RE = ID_RE
+# 与客户端界面上的分类一一对应，不认识的会被客户端悄悄归到 other
+CATEGORIES = ("game", "render", "film", "architecture", "automotive", "other")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ENGINE_RE = re.compile(r"^\d+\.\d+$")
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
-DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-MAX_TAGS = 10
-THUMBNAIL_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
-MAX_THUMBNAIL_SIZE = 512 * 1024
+PREVIEW_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+MAX_PREVIEW_SIZE = 512 * 1024
 
 # 模板包的上限，防止 zip 炸弹：条目数和解压后的总字节数
 MAX_ENTRIES = 20_000
@@ -68,6 +63,8 @@ MAX_UNCOMPRESSED = 2 << 30
 EXECUTABLE_SUFFIXES = {".py", ".dll", ".exe", ".so", ".dylib", ".bat", ".cmd", ".ps1", ".sh"}
 # 模板里钉死 ProjectID 会让所有新建工程共用同一个工程标识
 PROJECT_ID_RE = re.compile(r"^\s*ProjectID\s*=", re.MULTILINE)
+# UE 启动时往 DefaultEngine.ini 写回的逐机令牌，不该跟着模板走
+SECURITY_TOKEN_RE = re.compile(r"^\s*SecurityToken\s*=", re.MULTILINE)
 
 
 class Report:
@@ -204,6 +201,9 @@ def check_package(
             if bad:
                 r.error(f"{where}: {name} 不应包含 {sorted(bad)[0]}/ ({entry})")
                 continue
+            if p.parts[1:3] == DEVELOPERS_DIR:
+                r.error(f"{where}: {name} 不应包含 Content/Developers/，目录名是打包者的用户名 ({entry})")
+                continue
             if not info.is_dir() and len(p.parts) > 1:
                 files["/".join(p.parts[1:])] = info
         if stray:
@@ -223,8 +223,11 @@ def check_package(
 
         for rel, info in files.items():
             if rel.startswith("Config/") and rel.lower().endswith(".ini"):
-                if PROJECT_ID_RE.search(decode_text(zf.read(info))):
+                text = decode_text(zf.read(info))
+                if PROJECT_ID_RE.search(text):
                     r.error(f"{where}: {name} 的 {rel} 写死了 ProjectID，请删掉，UE 会在工程首次打开时生成")
+                if SECURITY_TOKEN_RE.search(text):
+                    r.error(f"{where}: {name} 的 {rel} 含本机生成的 SecurityToken，请删掉那一段")
 
         roots = {rel.split("/")[0] for rel in files}
         if "Source" in roots:
@@ -265,7 +268,7 @@ def check_template(
     root: Path,
     remote: bool,
     used_packages: set[str],
-    used_thumbnails: set[str],
+    used_previews: set[str],
 ) -> None:
     where = f"templates[{i}]"
     if not isinstance(t, dict):
@@ -294,40 +297,29 @@ def check_template(
         return isinstance(v, str)
 
     match("id", ID_RE, "小写字母/数字/连字符")
-    match("category", CATEGORY_RE, "小写字母/数字/连字符")
+    if isinstance(t.get("category"), str) and t["category"] not in CATEGORIES:
+        r.error(f"{where}: category={t['category']!r} 客户端不认识，应为 {' / '.join(CATEGORIES)} 之一")
     match("sha256", SHA256_RE, " 64 位小写十六进制")
     engine_ok = match("engineVersion", ENGINE_RE, "「主版本.次版本」，如 5.7")
     match("version", SEMVER_RE, "语义化版本，如 1.0.0")
-    match("minClientVersion", SEMVER_RE, "语义化版本，如 1.0.0")
-    if match("updated", DATE_RE, " YYYY-MM-DD 格式的日期"):
-        try:
-            datetime.date.fromisoformat(t["updated"])
-        except ValueError:
-            r.error(f"{where}: updated={t['updated']!r} 不是有效日期")
     if isinstance(t.get("homepage"), str) and not t["homepage"].startswith("https://"):
         r.error(f"{where}: homepage 应为 https:// 开头的地址")
 
-    tags = t.get("tags")
-    if isinstance(tags, list):
-        if len(tags) > MAX_TAGS:
-            r.error(f"{where}: tags 最多 {MAX_TAGS} 个")
-        for tag in tags:
-            if not isinstance(tag, str) or not ID_RE.match(tag):
-                r.error(f"{where}: tags 里的 {tag!r} 格式不对，应为小写字母/数字/连字符")
-        if len(set(map(str, tags))) != len(tags):
-            r.error(f"{where}: tags 有重复")
-
-    thumb = t.get("thumbnail")
-    if isinstance(thumb, str):
-        rel = PurePosixPath(thumb)
-        if rel.parent != PurePosixPath("thumbnails") or rel.suffix.lower() not in THUMBNAIL_SUFFIXES:
-            r.error(f"{where}: thumbnail 应形如 thumbnails/<名字>.png（png / jpg / webp）")
+    preview = t.get("previewUrl")
+    if isinstance(preview, str):
+        rel = PurePosixPath(preview)
+        if preview.startswith("http://"):
+            r.error(f"{where}: previewUrl 外链必须用 https")
+        elif preview.startswith("https://"):
+            pass  # 外链预览图只是展示用，不下载检查
+        elif rel.parent != PurePosixPath("previews") or rel.suffix.lower() not in PREVIEW_SUFFIXES:
+            r.error(f"{where}: previewUrl 应形如 previews/<名字>.png（png / jpg / webp）")
         elif not (root / rel).is_file():
-            r.error(f"{where}: 找不到 {thumb}")
+            r.error(f"{where}: 找不到 {preview}")
         else:
-            used_thumbnails.add(rel.name)
-            if (root / rel).stat().st_size > MAX_THUMBNAIL_SIZE:
-                r.error(f"{where}: {thumb} 超过 {MAX_THUMBNAIL_SIZE // 1024} KB")
+            used_previews.add(rel.name)
+            if (root / rel).stat().st_size > MAX_PREVIEW_SIZE:
+                r.error(f"{where}: {preview} 超过 {MAX_PREVIEW_SIZE // 1024} KB")
 
     engine_version = t["engineVersion"] if engine_ok else None
     url = t.get("packageUrl")
@@ -416,10 +408,10 @@ def validate(root: Path = ROOT, *, fix: bool = False, remote: bool = False) -> t
 
     ids: set[str] = set()
     used_packages: set[str] = set()
-    used_thumbnails: set[str] = set()
+    used_previews: set[str] = set()
     for i, t in enumerate(templates):
         tid = t.get("id") if isinstance(t, dict) else None
-        check_template(i, t, r, root, remote, used_packages, used_thumbnails)
+        check_template(i, t, r, root, remote, used_packages, used_previews)
         if isinstance(tid, str):
             if tid in ids:
                 r.error(f"templates[{i}]: id {tid!r} 重复")
@@ -444,10 +436,10 @@ def validate(root: Path = ROOT, *, fix: bool = False, remote: bool = False) -> t
         elif p.name not in packaged:
             r.error(f"templates/{p.name}/: 没有对应的 packages/{p.name}.zip 被清单引用")
 
-    thumbnails = root / "thumbnails"
-    for p in sorted(thumbnails.glob("*")) if thumbnails.is_dir() else []:
-        if not p.name.startswith(".") and p.name not in used_thumbnails:
-            r.error(f"thumbnails/{p.name}: 没有被 manifest.json 引用")
+    previews = root / "previews"
+    for p in sorted(previews.glob("*")) if previews.is_dir() else []:
+        if not p.name.startswith(".") and p.name not in used_previews:
+            r.error(f"previews/{p.name}: 没有被 manifest.json 引用")
 
     readme = (root / "README.md").read_text(encoding="utf-8")
     for tid in sorted(ids):

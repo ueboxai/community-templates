@@ -6,8 +6,6 @@
 *.md   text eol=lf
 *.py   text eol=lf
 *.yml  text eol=lf
-*.minisig text eol=lf
-*.pub     text eol=lf
 .editorconfig  text eol=lf
 .gitattributes text eol=lf
 .gitignore     text eol=lf

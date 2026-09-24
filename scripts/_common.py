@@ -11,6 +11,13 @@ ROOT = Path(__file__).resolve().parent.parent
 EXCLUDED_DIRS = {"Binaries", "Intermediate", "Saved", "DerivedDataCache", ".git", ".vs"}
 # 系统自动生成的文件
 EXCLUDED_FILES = {".DS_Store", "Thumbs.db", "desktop.ini"}
+# UE 给每个开发者建的私人目录，子目录名就是本机用户名，打包者的真名会跟着模板分发出去
+DEVELOPERS_DIR = ("Content", "Developers")
+
+
+def is_excluded(parts: tuple[str, ...]) -> bool:
+    """parts 是相对工程根目录的路径各段。"""
+    return bool(EXCLUDED_DIRS.intersection(parts)) or parts[:2] == DEVELOPERS_DIR
 
 
 def collect(src: Path) -> list[Path]:
@@ -18,7 +25,7 @@ def collect(src: Path) -> list[Path]:
     files = []
     for p in src.rglob("*"):
         rel = p.relative_to(src)
-        if EXCLUDED_DIRS.intersection(rel.parts) or p.name in EXCLUDED_FILES:
+        if is_excluded(rel.parts) or p.name in EXCLUDED_FILES:
             continue
         if p.is_file():
             files.append(p)

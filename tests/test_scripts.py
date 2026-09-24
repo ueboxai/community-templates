@@ -95,9 +95,14 @@ class PackTest(RepoTestCase):
         self.write("Saved/Logs/Demo.log", "log")
         self.write("Intermediate/x.bin", "x")
         self.write(".DS_Store", "x")
+        self.write("Content/Developers/zhangsan/a.uasset", "x")
+        self.write("Content/Maps/Main.umap", "x")
         self.repack()
         with zipfile.ZipFile(self.zip_path) as zf:
-            self.assertEqual(zf.namelist(), ["Demo/Config/DefaultGame.ini", "Demo/Demo.uproject"])
+            self.assertEqual(
+                zf.namelist(),
+                ["Demo/Config/DefaultGame.ini", "Demo/Content/Maps/Main.umap", "Demo/Demo.uproject"],
+            )
 
     def test_requires_uproject(self) -> None:
         (self.src / "Demo.uproject").unlink()
@@ -190,29 +195,42 @@ class ValidateTest(RepoTestCase):
         self.assertIn(".py", report.warnings[0])
 
     def test_optional_fields(self) -> None:
-        self.sync_manifest(
-            tags=["starter", "lumen"],
-            updated="2026-09-24",
-            minClientVersion="1.2.0",
-            homepage="https://example.com",
-        )
+        self.sync_manifest(category="render", homepage="https://example.com", previewUrl="https://example.com/a.png")
         self.assertEqual(self.run_validate().errors, [])
 
     def test_optional_field_formats(self) -> None:
-        self.sync_manifest(tags=["Bad Tag"], updated="2026-02-30", homepage="http://example.com", foo=1)
+        self.sync_manifest(category="rpg", homepage="http://example.com", tags=["x"])
         report = self.run_validate()
-        self.assertError(report, "tags 里的 'Bad Tag'")
-        self.assertError(report, "不是有效日期")
+        self.assertError(report, "category='rpg' 客户端不认识")
         self.assertError(report, "homepage 应为 https://")
-        self.assertError(report, "未知字段 foo")
+        self.assertError(report, "未知字段 tags")
 
-    def test_thumbnails(self) -> None:
-        thumbs = self.root / "thumbnails"
-        thumbs.mkdir()
-        (thumbs / "demo.png").write_bytes(b"\x89PNG")
-        self.assertError(self.run_validate(), "thumbnails/demo.png: 没有被 manifest.json 引用")
-        self.sync_manifest(thumbnail="thumbnails/demo.png")
+    def test_previews(self) -> None:
+        previews = self.root / "previews"
+        previews.mkdir()
+        (previews / "demo.png").write_bytes(b"\x89PNG")
+        self.assertError(self.run_validate(), "previews/demo.png: 没有被 manifest.json 引用")
+        self.sync_manifest(previewUrl="previews/demo.png")
         self.assertEqual(self.run_validate().errors, [])
+        self.sync_manifest(previewUrl="images/demo.png")
+        self.assertError(self.run_validate(), "previewUrl 应形如 previews/")
+
+    def test_security_token_rejected(self) -> None:
+        self.write(
+            "Config/DefaultEngine.ini",
+            "[/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings]\nSecurityToken=ABCDEF\n",
+        )
+        self.repack()
+        self.assertError(self.run_validate(), "SecurityToken")
+
+    def test_developers_dir_rejected(self) -> None:
+        self.write_zip(
+            [
+                ("Demo/Demo.uproject", json.dumps(UPROJECT).encode()),
+                ("Demo/Content/Developers/zhangsan/a.uasset", b"x"),
+            ]
+        )
+        self.assertError(self.run_validate(), "Content/Developers/")
 
     def test_external_package_requires_https(self) -> None:
         self.zip_path.unlink()

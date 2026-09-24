@@ -1,5 +1,4 @@
-# 所有改动都需要维护者审核；签名公钥、CI 和脚本决定了客户端能信任什么，尤其要看
+# 所有改动都需要维护者审核；CI 和脚本决定了什么样的模板包能上架，尤其要看
 *          @ueboxai
-/keys/     @ueboxai
 /.github/  @ueboxai
 /scripts/  @ueboxai

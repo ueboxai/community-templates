@@ -27,10 +27,11 @@ CI 保证两者逐字节一致。
 2. 点「启用官方社区库」
 3. 从列表里选一个模板，创建工程
 
-不点第 2 步，应用不会向这里发任何请求。启用之后，客户端读取的清单地址是：
+不点第 2 步，应用不会向这里发任何请求。启用之后，客户端会同时读取两个地址，哪个能连上就用哪个：
 
 ```
 https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json
+https://gitee.com/ueboxai/community-templates/raw/main/manifest.json   （国内镜像）
 ```
 
 `main` 分支上的内容就是用户看到的内容，合并即发布。
@@ -38,14 +39,12 @@ https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json
 ## 工作方式
 
 ```
-客户端                                   本仓库（raw.githubusercontent.com 或镜像）
+客户端                                   本仓库（raw.githubusercontent.com 或国内镜像）
   │  1. GET manifest.json  ──────────────▶  manifest.json
-  │     GET manifest.json.minisig ───────▶  manifest.json.minisig
-  │  2. 用内置公钥校验清单签名（配置公钥后）
-  │  3. 丢弃没有合法 sha256 的条目
-  │  4. 用户选中模板后下载 packageUrl ────▶  packages/<模板>.zip
-  │  5. 比对 sha256，不一致就拒绝
-  ▼  6. 解压成新的 UE 工程
+  │  2. 丢弃没有合法 sha256 的条目
+  │  3. 用户选中模板后下载 packageUrl ────▶  packages/<模板>.zip
+  │  4. 比对 sha256，不一致就拒绝
+  ▼  5. 解压，找到 .uproject，复制成用户命名的新工程
 ```
 
 `packageUrl` 是相对清单的路径，所以整个仓库可以原样镜像到任何静态托管上，
@@ -74,25 +73,15 @@ https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json
 }
 ```
 
-另外还有 `tags`、`updated`、`minClientVersion`、`homepage`、`thumbnail` 几个可选字段。
-客户端遇到不认识的字段应当忽略，新增可选字段不改 `formatVersion`。
-每个字段的含义和格式要求见 [CONTRIBUTING.md](CONTRIBUTING.md#字段)。
+另外还有 `previewUrl`（预览图）和 `homepage` 两个可选字段。每个字段的含义和格式要求见 [CONTRIBUTING.md](CONTRIBUTING.md#字段)。
 
-## 镜像
+## 国内镜像
 
-`raw.githubusercontent.com` 在国内经常很慢或者连不上。仓库不需要任何改动就能通过 jsDelivr 访问：
+`raw.githubusercontent.com` 在国内经常连不上，所以客户端还内置了 Gitee 上的镜像
+`gitee.com/ueboxai/community-templates`。镜像必须和这个仓库**原样同步**，模板包字节一致，
+否则 sha256 对不上，或者用户会看到重复的模板。
 
-```
-https://cdn.jsdelivr.net/gh/ueboxai/community-templates@main/manifest.json
-```
-
-- `main` 上的清单或模板包变了之后，[`mirror`](.github/workflows/mirror.yml) 工作流会自动刷新 jsDelivr 的缓存，
-  避免镜像上新清单配旧包
-- jsDelivr 不提供超过 20 MB 的单个文件，在国内也时好时坏。建议客户端内置多个清单地址，依次尝试
-- 也可以把整个仓库原样同步到国内的对象存储或 CDN，清单地址换成那里的地址即可
-
-镜像是否可信不影响安全性：模板包有 sha256 把关，配置签名公钥后清单也有签名把关，
-镜像只能让下载失败，改不了内容。
+镜像是否可信不影响安全性：模板包有 sha256 把关，镜像只能让下载失败，改不了内容。
 
 ## 投稿模板
 
@@ -119,32 +108,29 @@ python3 -m unittest discover -s tests
 - 这里的模板由第三方投稿，经过审核，但**不等于逐行审计**
 - 模板源码随仓库提交，审核看的是逐行的改动；包里有代码、插件、脚本时，CI 会在 PR 上标出来
 - sha256 能保证的是「下到的字节就是清单里写的那份，没被中途篡改」，
-  清单签名能保证「清单是维护者签过的那份」，都不能保证「这个包是安全的」
+  不能保证「这个包是安全的」
 - 客户端界面上有对应的提示；只打开你信任的作者的模板
 
-发现可疑的模板，请按 [SECURITY.md](SECURITY.md) 私下报告；普通问题请[提 issue](https://github.com/ueboxai/community-templates/issues/new/choose)。
+发现可疑的模板，请按 [SECURITY.md](SECURITY.md) 报告，不要公开细节；普通问题请[提 issue](https://github.com/ueboxai/community-templates/issues/new/choose)。
 
 ## 仓库结构
 
 ```
 .
 ├── manifest.json                 模板清单，客户端读的就是它
-├── manifest.json.minisig         清单签名（配置公钥后由维护者生成）
-├── keys/manifest.pub             清单签名公钥（配置后）
 ├── packages/                     模板包（zip，按二进制提交）
 ├── templates/                    模板源码，与 packages/ 下的包逐字节一致
-├── thumbnails/                   模板缩略图（可选）
+├── previews/                     模板预览图（可选）
 ├── scripts/
 │   ├── pack.py                   可复现打包，输出 size / sha256
 │   └── validate.py               清单、模板包与源码校验
 ├── tests/                        脚本的单元测试
 ├── .github/
-│   ├── workflows/validate.yml    PR / main 上跑校验、测试和签名检查
-│   ├── workflows/mirror.yml      main 更新后刷新 jsDelivr 镜像缓存
+│   ├── workflows/validate.yml    PR / main 上跑校验和测试
 │   ├── ISSUE_TEMPLATE/           issue 模板
 │   ├── CODEOWNERS
 │   └── pull_request_template.md  投稿自查清单
-├── CONTRIBUTING.md               投稿指南、字段说明、维护者流程
+├── CONTRIBUTING.md               投稿指南、字段说明、下架流程
 └── SECURITY.md                   安全问题报告
 ```
 

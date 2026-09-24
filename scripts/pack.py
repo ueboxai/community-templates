@@ -3,7 +3,8 @@
 
     python3 scripts/pack.py templates/<名字> [输出.zip]
 
-- 自动排除 Binaries / Intermediate / Saved / DerivedDataCache / .git / .vs
+- 自动排除 Binaries / Intermediate / Saved / DerivedDataCache / .git / .vs，
+  以及 Content/Developers（目录名是本机用户名）
 - 条目按路径排序、时间戳固定为 2020-01-01，同样的输入永远得到同样的字节，
   重新打包不会无故改掉 sha256
 - 输出默认是 packages/<目录名>.zip

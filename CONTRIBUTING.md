@@ -13,8 +13,8 @@
    python3 scripts/pack.py templates/MyTemplate
    ```
 
-   脚本会排除 `Binaries` / `Intermediate` / `Saved` / `DerivedDataCache` / `.git` / `.vs`，
-   生成 `packages/MyTemplate.zip`，并打印要填进清单的 `size` 和 `sha256`。
+   脚本会排除 `Binaries` / `Intermediate` / `Saved` / `DerivedDataCache` / `.git` / `.vs`
+   和 `Content/Developers`（目录名是你电脑的用户名），生成 `packages/MyTemplate.zip`，并打印要填进清单的 `size` 和 `sha256`。
    同样的输入每次打出的字节都一样，重新打包不会无故改掉哈希。
 3. 在 `manifest.json` 的 `templates` 末尾加一条（字段见下）
 4. 本地校验和测试：
@@ -25,7 +25,7 @@
    ```
 
 5. 在 README 的「现有模板」表里加一行
-6. 提 PR。CI 会跑同样的校验和测试。PR 上 `signature` 这一项失败是正常的，见[签名](#签名)。
+6. 提 PR。CI 会跑同样的校验和测试。
 
 更新已有模板时，改 `templates/<名字>/` 下的文件，重新打包，更新 `size` / `sha256`，并提升 `version`。
 
@@ -40,25 +40,22 @@
 | `packageUrl` | ✓ | 模板包地址，一般是 `packages/<名字>.zip`（相对于清单地址）；大包见[大模板包](#大模板包) |
 | `sha256` | ✓ | 模板包的 sha256，64 位小写十六进制 |
 | `description` |  | 一两句话的简介 |
-| `category` |  | 分类，小写，如 `game`、`render` |
-| `tags` |  | 标签数组，每个都是小写字母 / 数字 / 连字符，最多 10 个，如 `["lumen", "starter"]` |
+| `category` |  | 分类，只能是 `game` / `render` / `film` / `architecture` / `automotive` / `other`，与客户端界面上的分类对应 |
 | `engineVersion` |  | 适用的引擎版本，`主版本.次版本`，如 `5.7`。必须和 `.uproject` 的 `EngineAssociation` 一致 |
 | `size` |  | 模板包字节数 |
 | `version` |  | 模板自身版本，语义化版本，如 `1.0.0` |
-| `updated` |  | 最近一次更新的日期，`YYYY-MM-DD` |
-| `minClientVersion` |  | 需要的最低虚幻盒子版本，语义化版本。模板依赖新版客户端的功能时才填 |
 | `author` |  | 作者 |
 | `license` |  | 许可证，建议用 [SPDX 标识](https://spdx.org/licenses/)，如 `Apache-2.0` |
 | `homepage` |  | 模板主页或源码仓库，必须是 `https://` 地址 |
-| `thumbnail` |  | 缩略图，形如 `thumbnails/<名字>.png`（png / jpg / webp，不超过 512 KB） |
+| `previewUrl` |  | 预览图，形如 `previews/<名字>.png`（png / jpg / webp，不超过 512 KB），也可以是 `https://` 外链 |
 
 **没有合法 `sha256` 的条目会被客户端整条丢弃。** 模板包解压出来是一个完整的 UE 工程，
 打开时里面的 C++、插件、脚本都会跑，「下到的字节确实是你写的那份」是客户端唯一能提供的保证。
 
 ### 兼容性
 
-- 客户端遇到不认识的字段应当忽略，而不是丢弃整条。所以新增**可选**字段不需要改 `formatVersion`
-- 只有不兼容的改动（改必填字段、改已有字段的含义）才提升 `formatVersion`
+- 上面的字段就是客户端会读的全部字段。客户端遇到不认识的字段会忽略，但 CI 会把它当拼写错误拦下
+- 客户端只认 `formatVersion: 1`，改成别的值整份清单都会被拒绝
 
 ## CI 检查什么
 
@@ -69,9 +66,10 @@
   没有绝对路径、`..`、符号链接、重复条目、只差大小写的路径
 - 模板包解压后不超过 2 GiB、不超过 20000 个条目
 - `.uproject` 的 `EngineAssociation` 与 `engineVersion` 一致
-- `Config/*.ini` 里没有写死 `ProjectID`
+- 模板包里没有 `Content/Developers/`
+- `Config/*.ini` 里没有写死 `ProjectID`，也没有本机生成的 `SecurityToken`
 - `packages/` 下的模板包与 `templates/` 下的源码逐字节一致
-- `packages/`、`templates/`、`thumbnails/` 下没有清单没引用的东西
+- `packages/`、`templates/`、`previews/` 下没有清单没引用的东西
 - README 的「现有模板」表列出了清单里的每个模板
 - `manifest.json` 是 UTF-8、LF、2 空格缩进
 - 外链模板包会被下载下来做同样的检查
@@ -84,6 +82,8 @@
 - `manifest.json`：UTF-8、LF、2 空格缩进、末尾换行，中文直接写不转义。
   格式不对时可以 `python3 scripts/validate.py --fix` 自动整理
 - 模板配置里不要写 `ProjectID`，UE 会在工程首次打开时生成；写死的话所有新建工程会共用同一个标识
+- 打包前把工程用引擎开一次再关掉，然后删掉 `Saved/`；如果 `Config/DefaultEngine.ini` 里多出了带 `SecurityToken` 的
+  `[/Script/AndroidFileServerEditor...]` 一段，删掉它（每台机器生成的都不一样）
 - 不要提交编辑器自动写出的无用配置（比如只有引擎默认值的 `DefaultEditor.ini`）
 - `packages/` 下只放被清单引用的 `.zip`
 - 提交信息使用 `feat:` / `fix:` / `chore:` / `docs:` 前缀
@@ -99,35 +99,18 @@
 
 ## 维护者
 
-### 签名
+### 国内镜像
 
-客户端通过 sha256 确认模板包没被换掉，但清单本身是否可信，要看这个 GitHub 仓库和账号有没有被攻破。
-清单签名用来补上这一环：维护者在自己的电脑上用私钥给 `manifest.json` 签名，
-客户端内置公钥，只接受签名有效的清单。
+客户端内置了两个官方源，「启用官方社区库」会同时打开：
 
-用的是 [minisign](https://jedisct1.github.io/minisign/)，各语言都有能校验它的库。
+| 源 | 清单地址 |
+| --- | --- |
+| GitHub | `https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json` |
+| 国内镜像 | `https://gitee.com/ueboxai/community-templates/raw/main/manifest.json` |
 
-一次性准备（私钥**只放在维护者自己的电脑上**，不要提交，也不要放进 CI secrets）：
-
-```sh
-minisign -G -p keys/manifest.pub -s ~/.minisign/community-templates.key
-git add keys/manifest.pub
-```
-
-公钥提交之后，CI 的 `signature` 检查就会生效。之后每次合并改动了 `manifest.json` 的 PR 之前：
-
-```sh
-minisign -Sm manifest.json -s ~/.minisign/community-templates.key
-git add manifest.json.minisig
-```
-
-把签名推到 PR 分支上，`signature` 变绿再合并。投稿者没有私钥，他们的 PR 在签名前这一项一定是红的，
-等于「维护者签名 = 审核通过」。可以在分支保护里把 `signature` 设为必须通过。
-
-注意：CI 的检查只是防止忘了签名。真正的保护来自**客户端内置的公钥**。
-有人在 PR 里换掉 `keys/manifest.pub` 也骗不过客户端，但审核时要特别留意这个文件的改动。
+国内镜像必须是这个仓库的**原样同步**，模板包字节一致。自己重新打包会让 sha256 不同，用户会看到重复的模板。
 
 ### 下架模板
 
 发现有问题的模板，把条目从 `manifest.json` 里删掉，同时删掉 `packages/` 和 `templates/` 下对应的文件，
-重新签名后合并。客户端下次读取清单时就不会再列出它。流程见 [SECURITY.md](SECURITY.md)。
+合并到 `main`。客户端下次读取清单时就不会再列出它。流程见 [SECURITY.md](SECURITY.md)。
