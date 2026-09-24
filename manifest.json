@@ -8,9 +8,9 @@
       "category": "game",
       "engineVersion": "5.7",
       "packageUrl": "packages/GameStart.zip",
-      "size": 8703,
-      "sha256": "52ca96cbb8a0470f882fe25f881fd61c9e51f08046441b6258583039b2e5903f",
-      "version": "1.1.0",
+      "size": 2968,
+      "sha256": "db5cdea7eb09f614bf09607a15d067f89c8606f49fae733160883919866cb283",
+      "version": "1.1.1",
       "author": "Unreal Box Team",
       "license": "Apache-2.0"
     },
@@ -21,9 +21,9 @@
       "category": "render",
       "engineVersion": "5.7",
       "packageUrl": "packages/RenderStart.zip",
-      "size": 6504,
-      "sha256": "3917fc85ccb21bc9a12034fb4f1edee8a936ca2c9b50c4a385ea353b2ab7ab5c",
-      "version": "2.0.0",
+      "size": 2486,
+      "sha256": "e147151271b5b1bf8cf3fa29fad9830ed174ba9e39e330ac7024517012e379a0",
+      "version": "2.0.1",
       "author": "Unreal Box Team",
       "license": "Apache-2.0"
     }

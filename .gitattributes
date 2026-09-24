@@ -6,6 +6,13 @@
 *.md   text eol=lf
 *.py   text eol=lf
 *.yml  text eol=lf
+*.minisig text eol=lf
+*.pub     text eol=lf
 .editorconfig  text eol=lf
 .gitattributes text eol=lf
 .gitignore     text eol=lf
+CODEOWNERS     text eol=lf
+
+# 模板源码原样保存，不做任何换行转换：打包出来的字节要和仓库里的一致。
+# 放在最后，覆盖上面按扩展名的规则
+templates/** -text
