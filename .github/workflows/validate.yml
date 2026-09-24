@@ -16,4 +16,35 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python3 scripts/validate.py
+      # --remote：外链模板包也下载下来校验
+      - run: python3 scripts/validate.py --remote
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 最低支持版本和最新版本
+        python-version: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python3 -m unittest discover -s tests -v
+
+  signature:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 校验清单签名
+        run: |
+          if [ ! -f keys/manifest.pub ]; then
+            echo "::notice::还没有配置签名公钥 keys/manifest.pub，跳过签名校验"
+            exit 0
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq minisign
+          if ! minisign -Vm manifest.json -p keys/manifest.pub; then
+            echo "::error file=manifest.json::manifest.json 没有有效签名。投稿 PR 这一项失败是正常的：维护者审核通过后会签名再合并"
+            exit 1
+          fi
