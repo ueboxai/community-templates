@@ -21,7 +21,8 @@
    python3 scripts/validate.py
    ```
 
-5. 提 PR。CI 会跑同一个校验脚本。
+5. 在 README 的「现有模板」表里加一行
+6. 提 PR。CI 会跑同一个校验脚本。
 
 更新已有模板时，替换 zip、更新 `size` / `sha256`，并提升 `version`。
 

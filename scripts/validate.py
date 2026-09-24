@@ -19,6 +19,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "manifest.json"
+README = ROOT / "README.md"
 PACKAGES = ROOT / "packages"
 
 FORMAT_VERSION = 1
@@ -188,6 +189,11 @@ def main() -> int:
             errors.append(f"packages/{zip_path.name}: packages/ 下只放 .zip 模板包")
         elif zip_path.name not in used:
             errors.append(f"packages/{zip_path.name}: 没有被 manifest.json 引用")
+
+    readme = README.read_text(encoding="utf-8")
+    for tid in sorted(ids):
+        if f"`{tid}`" not in readme:
+            errors.append(f"README.md: 「现有模板」表里缺少 `{tid}`")
 
     if errors:
         for e in errors:
