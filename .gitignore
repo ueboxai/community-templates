@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .vscode/
 .idea/
+
+# 签名私钥绝不能提交
+*.key

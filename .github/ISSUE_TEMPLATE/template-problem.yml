@@ -1,0 +1,30 @@
+name: 模板问题
+description: 某个模板打不开、配置不对、和说明不符
+labels: ["template"]
+body:
+  - type: input
+    id: template
+    attributes:
+      label: 模板 id
+      description: manifest.json 里的 id，如 gamestart
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 模板版本
+      description: manifest.json 里的 version，如 1.1.1
+  - type: input
+    id: engine
+    attributes:
+      label: 引擎版本
+      description: 你用来打开工程的 UE 版本，如 5.7.1
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 做了什么、期望看到什么、实际看到什么。有报错请贴日志（Saved/Logs 下）
+    validations:
+      required: true
