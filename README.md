@@ -16,18 +16,21 @@ https://raw.githubusercontent.com/ueboxai/community-templates/main/manifest.json
 
 ## 投稿一个模板
 
-1. 把你的 UE 工程打包成 zip（任意层级下有一个 `.uproject` 就行），
-   排除 `Binaries` / `Intermediate` / `Saved` / `.git`
-2. 放进 `packages/`
-3. 算出 sha256：`sha256sum packages/你的模板.zip`
-4. 在 `manifest.json` 的 `templates` 里加一条
-5. 提 PR
+打包、填清单、本地校验、提 PR。详细步骤和字段说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-必填字段是 `id`、`name`、`packageUrl`、`sha256`。**没有合法 sha256 的条目会被客户端整条丢弃** ——
-模板包解压出来是一个完整的 UE 工程，打开时里面的 C++、插件、脚本都会跑，
-「下到的字节确实是你写的那份」是客户端唯一能提供的保证。
+```sh
+python3 scripts/pack.py path/to/MyTemplate   # 打包并输出 size / sha256
+python3 scripts/validate.py                  # 校验清单与模板包
+```
 
-完整的字段说明和校验规则见客户端仓库的 `docs/community-templates.md`。
+## 目录结构
+
+```
+manifest.json        模板清单（客户端读取的就是它）
+packages/            模板包 zip
+scripts/pack.py      可复现打包
+scripts/validate.py  清单校验（CI 同款）
+```
 
 ## 关于安全
 

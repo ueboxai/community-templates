@@ -1,6 +1,11 @@
 # 模板包是二进制，任何换行转换都会改掉 sha256，清单就对不上了
 *.zip binary
 
-# 清单以 LF 提交，避免不同机器上生成的哈希不一致
+# 文本一律以 LF 提交，避免不同机器上生成的清单/哈希不一致
 *.json text eol=lf
-*.md text eol=lf
+*.md   text eol=lf
+*.py   text eol=lf
+*.yml  text eol=lf
+.editorconfig  text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf
